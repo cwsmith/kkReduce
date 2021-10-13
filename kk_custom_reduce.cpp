@@ -79,7 +79,7 @@ public:
 
   KOKKOS_INLINE_FUNCTION
   result_view_type view() const {
-    return result_view_type(&value);
+    return result_view_type(&value,1);
   }
 
   KOKKOS_INLINE_FUNCTION
