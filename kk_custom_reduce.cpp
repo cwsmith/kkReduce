@@ -96,7 +96,7 @@ int main( int argc, char* argv[] ) {
      int E = 1024;
 
      typedef sample::array_type<int,4> ValueType;
-     typedef sample::SumMyArray <int, Kokkos::CudaSpace, 4> ArraySumResult;
+     typedef sample::SumMyArray <int, Kokkos::HostSpace, 4> ArraySumResult;
 
      ValueType tr;
 
