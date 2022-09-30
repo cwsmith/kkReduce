@@ -3,6 +3,7 @@
 #include <utility> // std::make_pair
 
 namespace KK = Kokkos;
+namespace KE = Kokkos::Experimental;
 using Exec = KK::DefaultExecutionSpace;
 
 typedef std::int8_t I8;
@@ -22,23 +23,38 @@ struct i32Plus {
 
 int main(int argc, char** argv) {
   KK::initialize(argc, argv);
+  int hasFailed;
+  {
   const int size = 5;
 
+  //input array of short ints
   KK::View<I8*> in("i8View",size);
-  KK::parallel_for("ones", size,
-    KOKKOS_LAMBDA (const int& i) { in[i] = 1; }
-  );
-  KK::View<LO*> out("loView",size+1);
-  int sz = out.size();
-  auto outSub = KK::subview(out, std::make_pair(1,sz));
+  KE::fill(Exec(), in, I8(1)); //fill with 1s
 
-  assert(outSub.size()==in.size());
+  //input array of ints
+  KK::View<LO*> out("loView",size+1);
+
+  //write exclusive prefix sum into outSub
+  auto outSub = KK::subview(out, std::make_pair(1,size+1));
   auto kkOp = i32Plus<I8>();
-  KK::Experimental::inclusive_scan(Exec(), in, outSub, kkOp);
-  KK::fence();
-  KK::parallel_for("bar", size+1,
-    KOKKOS_LAMBDA (const int& i) { printf("%d %d\n", i, out[i]); }
+  KE::inclusive_scan(Exec(), in, outSub, kkOp);
+
+  //check the result
+  KK::View<LO*> matchCount("matchCount",1);
+  KK::View<LO*,KK::HostSpace> matchCount_h("matchCount_h",1);
+  KK::parallel_for("check", size+1,
+    KOKKOS_LAMBDA (const int& i) {
+      if(out[i] != i) {
+        printf("out(%d) = %d should be %d\n", i, out(i), i);
+      } else {
+        KK::atomic_increment(&matchCount(0));
+      }
+    }
   );
+  KK::deep_copy(matchCount_h,matchCount);
+  KK::fence();
+  hasFailed = !(matchCount_h(0) == size+1);
+  }
   KK::finalize();
-  return 0;
+  return hasFailed;;
 }
