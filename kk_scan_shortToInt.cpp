@@ -1,6 +1,7 @@
 #include "Kokkos_Core.hpp"
 #include "Kokkos_StdAlgorithms.hpp"
 #include <utility> // std::make_pair
+#include <numeric> // std::iota
 
 namespace KK = Kokkos;
 namespace KE = Kokkos::Experimental;
@@ -23,7 +24,7 @@ struct i32Plus {
 
 int main(int argc, char** argv) {
   KK::initialize(argc, argv);
-  int hasFailed;
+  int isCorrect;
   {
   const int size = 5;
 
@@ -40,21 +41,22 @@ int main(int argc, char** argv) {
   KE::inclusive_scan(Exec(), in, outSub, kkOp);
 
   //check the result
-  KK::View<LO*> matchCount("matchCount",1);
-  KK::View<LO*,KK::HostSpace> matchCount_h("matchCount_h",1);
-  KK::parallel_for("check", size+1,
-    KOKKOS_LAMBDA (const int& i) {
-      if(out[i] != i) {
-        printf("out(%d) = %d should be %d\n", i, out(i), i);
-      } else {
-        KK::atomic_increment(&matchCount(0));
+  KK::View<LO*, KK::HostSpace> expected_h("expected_h",size+1);
+  KK::View<LO*> expected("expected",size+1);
+  std::iota(KE::begin(expected_h), KE::end(expected_h), 0);
+  KK::deep_copy(expected, expected_h);
+  isCorrect = KE::equal(Exec(),expected,out);
+  //print the wrong values if they exist
+  if( !isCorrect ) {
+    printf("the output of the inclusive_scan is incorrect\n");
+    KK::parallel_for("check", size+1,
+      KOKKOS_LAMBDA (const int& i) {
+       if(out[i] != expected[i])
+         printf("out(%d) = %d should be %d\n", i, out(i), i);
       }
-    }
-  );
-  KK::deep_copy(matchCount_h,matchCount);
-  KK::fence();
-  hasFailed = !(matchCount_h(0) == size+1);
+    );
+  }
   }
   KK::finalize();
-  return hasFailed;;
+  return !isCorrect;
 }
