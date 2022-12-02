@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   KK::initialize(argc, argv);
   int isCorrect;
   {
-  const int size = 5;
+  const int size = 128;
 
   //input array of short ints
   KK::View<I8*> in("i8View",size);
