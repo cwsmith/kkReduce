@@ -37,8 +37,8 @@ int main(int argc, char** argv) {
 
   //write exclusive prefix sum into outSub
   auto outSub = KK::subview(out, std::make_pair(1,size+1));
-  auto kkOp = i32Plus<I8>();
-  KE::inclusive_scan(Exec(), in, outSub, kkOp);
+  auto kkOp = i32Plus<LO>();
+  KE::inclusive_scan(Exec(), in, outSub, kkOp, LO());
 
   //check the result
   KK::View<LO*, KK::HostSpace> expected_h("expected_h",size+1);
